@@ -1,66 +1,41 @@
-## Foundry
+## FileStorageNFT
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+`FileStorageNFT` is a Foundry smart contract project for representing uploaded files as ERC-721 NFTs. The file bytes are expected to live off-chain, such as in IPFS, while the contract stores a content identifier and basic upload metadata on-chain.
 
-Foundry consists of:
+## Contract Behavior
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+`src/FileStorageNFT.sol` inherits two OpenZeppelin contracts:
 
-## Documentation
+- `ERC721`, which gives each uploaded file a unique transferable NFT token.
+- `Ownable`, which records the deployer as the contract owner.
 
-https://book.getfoundry.sh/
+The imports use project-relative Foundry paths:
 
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```solidity
+import "lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 ```
 
-### Test
+These paths resolve against the local `lib` folder configured in `foundry.toml`. They should not start with `/`, because `/lib/...` points to the root of the machine instead of this project.
+
+## Upload Flow
+
+Calling `uploadFile(cid, fileName)`:
+
+1. Uses the current `tokenCounter` as the next token ID.
+2. Mints that ERC-721 token to `msg.sender`.
+3. Stores the file CID, original file name, uploader address, and block timestamp.
+4. Emits `FileUploaded`.
+5. Increments `tokenCounter`.
+
+Use `getFile(tokenId)` to read the saved metadata and `isOwner(tokenId, user)` to check whether an address owns a file NFT.
+
+## Commands
 
 ```shell
-$ forge test
+forge build
+forge test
+forge fmt
 ```
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Run these commands from the `storage_forge` directory.
