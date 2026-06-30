@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "storage_forge/lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import "storage_forge/lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import "contract/lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import "contract/lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract FileStorageNFT is ERC721, Ownable {
 
