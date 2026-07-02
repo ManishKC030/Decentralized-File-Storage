@@ -12,7 +12,7 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
-  
+
   const [fileName, setFileName] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -31,7 +31,11 @@ export default function App() {
   }
 
   const getContract = (signerOrProvider) => {
-    return new ethers.Contract(CONTRACT_ADDRESS, fileStorageABI.abi, signerOrProvider);
+    return new ethers.Contract(
+      CONTRACT_ADDRESS,
+      fileStorageABI.abi,
+      signerOrProvider,
+    );
   };
 
   async function loadFiles() {
@@ -43,7 +47,7 @@ export default function App() {
       const contract = getContract(provider);
       const count = await contract.tokenCounter();
       const fetchedFiles = [];
-      
+
       // We loop through the blockchain mapping (our database)
       for (let i = 0; i < Number(count); i++) {
         try {
@@ -53,7 +57,7 @@ export default function App() {
             cid: file.cid,
             fileName: file.fileName,
             uploader: file.uploader,
-            timestamp: new Date(Number(file.timestamp) * 1000).toLocaleString()
+            timestamp: new Date(Number(file.timestamp) * 1000).toLocaleString(),
           });
         } catch (err) {
           console.error("Error fetching file " + i + ":", err);
@@ -95,12 +99,16 @@ export default function App() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const res = await axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: "Bearer " + PINATA_JWT,
+      const res = await axios.post(
+        "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: "Bearer " + PINATA_JWT,
+          },
         },
-      });
+      );
 
       return res.data.IpfsHash;
     } catch (error) {
@@ -115,6 +123,10 @@ export default function App() {
       alert("Please select a file first");
       return;
     }
+    if (!fileName.trim()) {
+      alert("Please enter a file name.");
+      return;
+    }
 
     // 1. Upload to IPFS
     const cid = await uploadToPinata();
@@ -125,23 +137,39 @@ export default function App() {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = getContract(signer);
-      
+
       setStatus("Confirm Minting in MetaMask...");
       const tx = await contract.uploadFile(cid, fileName);
-      
+
       setStatus("Recording on Blockchain...");
       await tx.wait();
-      
+
       setStatus("Forge Success!");
       alert("Success! File stored in decentralized vault.");
-      
+
       setFileName("");
       setSelectedFile(null);
       loadFiles();
     } catch (error) {
       console.error(error);
+
       setStatus("Minting Failed");
-      alert("Minting failed: " + (error.reason || error.message));
+
+      let message = "Minting failed.";
+
+      if (error.message.includes("EmptyCID")) {
+        message = "CID cannot be empty.";
+      } else if (error.message.includes("EmptyFileName")) {
+        message = "File name cannot be empty.";
+      } else if (error.message.includes("FileAlreadyUploaded")) {
+        message = "This file has already been uploaded.";
+      } else if (error.message.includes("FileDoesNotExist")) {
+        message = "Requested file does not exist.";
+      } else if (error.reason) {
+        message = error.reason;
+      }
+
+      alert(message);
     }
   }
 
@@ -151,10 +179,12 @@ export default function App() {
         {/* Header */}
         <div className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-slate-700 shadow-xl">
           <div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">
+            <h1 className="text-3xl font-black bg-linear-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">
               STORAGE FORGE
             </h1>
-            <p className="text-slate-500 text-xs mt-1 font-medium tracking-widest uppercase">ERC-721 Metadata Vault</p>
+            <p className="text-slate-500 text-xs mt-1 font-medium tracking-widest uppercase">
+              ERC-721 Metadata Vault
+            </p>
           </div>
           {!account ? (
             <button
@@ -165,8 +195,12 @@ export default function App() {
             </button>
           ) : (
             <div className="text-right">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Connected Wallet</p>
-              <p className="text-cyan-400 font-mono text-sm font-bold">{account.slice(0, 6)}...{account.slice(-4)}</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                Connected Wallet
+              </p>
+              <p className="text-cyan-400 font-mono text-sm font-bold">
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </p>
             </div>
           )}
         </div>
@@ -175,8 +209,8 @@ export default function App() {
           <>
             {/* Main Action Card */}
             <div className="bg-slate-900 p-8 rounded-3xl border border-slate-700 space-y-8 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-              
+              <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-blue-500 to-cyan-500"></div>
+
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Forge New Asset</h2>
                 {status && (
@@ -194,18 +228,26 @@ export default function App() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                   <div className="w-full h-48 bg-slate-800/50 border-2 border-dashed border-slate-700 group-hover:border-blue-500/50 group-hover:bg-slate-800 rounded-2xl flex flex-col items-center justify-center transition-all text-center">
-                    <span className="text-5xl mb-3">{selectedFile ? "📄" : "📁"}</span>
+                    <span className="text-5xl mb-3">
+                      {selectedFile ? "📄" : "📁"}
+                    </span>
                     <p className="text-slate-300 font-bold px-4 truncate w-full">
-                      {selectedFile ? selectedFile.name : "Click to select any file"}
+                      {selectedFile
+                        ? selectedFile.name
+                        : "Click to select any file"}
                     </p>
                     <p className="text-slate-500 text-xs mt-1">
-                      {selectedFile ? (selectedFile.size / 1024).toFixed(2) + " KB" : "IPFS + ERC-721"}
+                      {selectedFile
+                        ? (selectedFile.size / 1024).toFixed(2) + " KB"
+                        : "IPFS + ERC-721"}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Optional: Customize Name</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                    Optional: Customize Name
+                  </label>
                   <input
                     placeholder="Document Name"
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3.5 focus:outline-none focus:border-blue-500 transition-all text-sm font-medium"
@@ -214,10 +256,10 @@ export default function App() {
                   />
                 </div>
 
-                <button 
-                  onClick={handleForge} 
+                <button
+                  onClick={handleForge}
                   disabled={!selectedFile}
-                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-800 disabled:text-slate-600 p-4 rounded-xl font-black text-lg transition-all active:scale-[0.98] shadow-xl shadow-blue-900/20 uppercase tracking-widest"
+                  className="w-full bg-linear-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-800 disabled:text-slate-600 p-4 rounded-xl font-black text-lg transition-all active:scale-[0.98] shadow-xl shadow-blue-900/20 uppercase tracking-widest"
                 >
                   Confirm & Forge to Blockchain
                 </button>
@@ -231,34 +273,46 @@ export default function App() {
                   <span className="w-2 h-8 bg-cyan-500 rounded-full"></span>
                   Vault Contents
                 </h2>
-                <button 
-                  onClick={loadFiles} 
+                <button
+                  onClick={loadFiles}
                   className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-xs font-bold transition-all border border-slate-700"
                 >
                   REFRESH
                 </button>
               </div>
-              
+
               {loading ? (
                 <div className="text-center py-20">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                  <p className="text-slate-500 font-medium tracking-widest text-xs uppercase">Reading Distributed Ledger...</p>
+                  <p className="text-slate-500 font-medium tracking-widest text-xs uppercase">
+                    Reading Distributed Ledger...
+                  </p>
                 </div>
               ) : files.length === 0 ? (
                 <div className="text-center py-20 bg-slate-800/20 rounded-3xl border-2 border-dashed border-slate-800">
-                  <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No assets found on this contract.</p>
+                  <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
+                    No assets found on this contract.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
                   {files.map((file) => (
-                    <div key={file.id} className="group bg-slate-800/30 hover:bg-slate-800/60 p-6 rounded-2xl border border-slate-800 hover:border-slate-600 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div
+                      key={file.id}
+                      className="group bg-slate-800/30 hover:bg-slate-800/60 p-6 rounded-2xl border border-slate-800 hover:border-slate-600 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+                    >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] bg-slate-700 text-slate-400 px-2 py-0.5 rounded font-mono font-bold">ID #{file.id}</span>
-                          <h3 className="text-lg font-bold text-white">{file.fileName}</h3>
+                          <span className="text-[10px] bg-slate-700 text-slate-400 px-2 py-0.5 rounded font-mono font-bold">
+                            ID #{file.id}
+                          </span>
+                          <h3 className="text-lg font-bold text-white">
+                            {file.fileName}
+                          </h3>
                         </div>
                         <p className="text-[10px] text-slate-500 font-mono break-all leading-tight">
-                          CID: <span className="text-cyan-500/60">{file.cid}</span>
+                          CID:{" "}
+                          <span className="text-cyan-500/60">{file.cid}</span>
                         </p>
                       </div>
                       <div className="flex gap-3 w-full md:w-auto">

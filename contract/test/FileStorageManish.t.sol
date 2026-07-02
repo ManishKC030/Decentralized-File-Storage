@@ -15,7 +15,7 @@ contract FileStorageNFTTest is Test {
         fileNFT = new FileStorageNFT();
     }
 
-    function testDeployment() public {
+    function testDeployment() public view {
         assertEq(fileNFT.name(), "FileStorageNFT");
         assertEq(fileNFT.symbol(), "FSNFT");
         assertEq(fileNFT.owner(), address(this));
