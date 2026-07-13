@@ -2,11 +2,16 @@
 pragma solidity ^0.8.20;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
-contract FileStorageNFT is ERC721 {
+contract FileStorageNFT is ERC721, Ownable {
+
     uint256 public tokenCounter;
 
-    constructor() ERC721("FileStorageNFT", "FSNFT") {}
+    constructor()
+        ERC721("FileStorageNFT", "FSNFT")
+        Ownable(msg.sender)
+    {}
 
     error EmptyCID();
     error EmptyFileName();
@@ -21,6 +26,7 @@ contract FileStorageNFT is ERC721 {
     }
 
     mapping(uint256 => FileData) private files;
+
     mapping(string => bool) private uploadedCID;
 
     event FileUploaded(
@@ -31,14 +37,20 @@ contract FileStorageNFT is ERC721 {
     );
 
     function uploadFile(
-        string calldata _cid,
-        string calldata _fileName
-    ) external returns (uint256 tokenId) {
-        if (bytes(_cid).length == 0) revert EmptyCID();
+        string memory _cid,
+        string memory _fileName
+    )
+        external
+        returns (uint256 tokenId)
+    {
+        if (bytes(_cid).length == 0)
+            revert EmptyCID();
 
-        if (bytes(_fileName).length == 0) revert EmptyFileName();
+        if (bytes(_fileName).length == 0)
+            revert EmptyFileName();
 
-        if (uploadedCID[_cid]) revert FileAlreadyUploaded();
+        if (uploadedCID[_cid])
+            revert FileAlreadyUploaded();
 
         tokenId = tokenCounter;
 
@@ -61,13 +73,17 @@ contract FileStorageNFT is ERC721 {
         );
 
         unchecked {
-            ++tokenCounter;
+            tokenCounter++;
         }
     }
 
     function getFile(
         uint256 tokenId
-    ) external view returns (FileData memory) {
+    )
+        external
+        view
+        returns (FileData memory)
+    {
         if (_ownerOf(tokenId) == address(0))
             revert FileDoesNotExist();
 
@@ -77,13 +93,11 @@ contract FileStorageNFT is ERC721 {
     function isOwner(
         uint256 tokenId,
         address user
-    ) external view returns (bool) {
+    )
+        external
+        view
+        returns (bool)
+    {
         return ownerOf(tokenId) == user;
-    }
-
-    function isCIDUploaded(
-        string calldata cid
-    ) external view returns (bool) {
-        return uploadedCID[cid];
     }
 }
