@@ -37,8 +37,8 @@ contract FileStorageNFT is ERC721, Ownable {
     );
 
     function uploadFile(
-        string memory _cid,
-        string memory _fileName
+        string calldata _cid,
+        string calldata _fileName
     )
         external
         returns (uint256 tokenId)
