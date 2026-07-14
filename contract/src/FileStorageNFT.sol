@@ -25,7 +25,7 @@ contract FileStorageNFT is ERC721, Ownable {
         uint256 timestamp;
     }
 
-    mapping(uint256 => FileData) private files;
+    // mapping(uint256 => FileData) private files;
 
     mapping(string => bool) private uploadedCID;
 
@@ -56,13 +56,7 @@ contract FileStorageNFT is ERC721, Ownable {
 
         _safeMint(msg.sender, tokenId);
 
-        files[tokenId] = FileData({
-            cid: _cid,
-            fileName: _fileName,
-            uploader: msg.sender,
-            timestamp: block.timestamp
-        });
-
+    
         uploadedCID[_cid] = true;
 
         emit FileUploaded(
@@ -77,27 +71,22 @@ contract FileStorageNFT is ERC721, Ownable {
         }
     }
 
-    function getFile(
-        uint256 tokenId
-    )
-        external
-        view
-        returns (FileData memory)
-    {
-        if (_ownerOf(tokenId) == address(0))
-            revert FileDoesNotExist();
+    // function getFile(
+    //     uint256 tokenId
+    // )
+    //     external
+    //     view
+    //     returns (FileData memory)
+    // {
+    //     if (_ownerOf(tokenId) == address(0))
+    //         revert FileDoesNotExist();
 
-        return files[tokenId];
+    //     return files[tokenId];
+    // }
+
+    function isCIDUsed(string calldata _cid) external view returns (bool) {
+        return uploadedCID[_cid];
     }
 
-    function isOwner(
-        uint256 tokenId,
-        address user
-    )
-        external
-        view
-        returns (bool)
-    {
-        return ownerOf(tokenId) == user;
-    }
+  
 }

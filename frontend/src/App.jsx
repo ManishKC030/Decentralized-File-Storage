@@ -38,36 +38,41 @@ export default function App() {
     );
   };
 
+  // ✅ NEW: Load files by querying events instead of looping over storage
   async function loadFiles() {
     if (!window.ethereum || !account || !CONTRACT_ADDRESS) return;
     setLoading(true);
-    setStatus("Reading Blockchain Database...");
+    setStatus("Reading Blockchain Events...");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = getContract(provider);
-      const count = await contract.tokenCounter();
-      const fetchedFiles = [];
 
-      // We loop through the blockchain mapping (our database)
-      for (let i = 0; i < Number(count); i++) {
-        try {
-          const file = await contract.getFile(i);
-          fetchedFiles.push({
-            id: i,
-            cid: file.cid,
-            fileName: file.fileName,
-            uploader: file.uploader,
-            timestamp: new Date(Number(file.timestamp) * 1000).toLocaleString(),
-          });
-        } catch (err) {
-          console.error("Error fetching file " + i + ":", err);
-        }
-      }
-      setFiles(fetchedFiles.reverse());
+      // Filter for all FileUploaded events
+      const filter = contract.filters.FileUploaded();
+      const events = await contract.queryFilter(filter, 0, "latest");
+
+      // Map events to file objects (with timestamp from the block)
+      const fetchedFiles = await Promise.all(
+        events.map(async (event) => {
+          const block = await provider.getBlock(event.blockNumber);
+          const timestamp = new Date(block.timestamp * 1000).toLocaleString();
+          return {
+            id: Number(event.args.tokenId),
+            cid: event.args.cid,
+            fileName: event.args.fileName,
+            uploader: event.args.uploader,
+            timestamp: timestamp,
+          };
+        }),
+      );
+
+      // Sort by tokenId descending (most recent first)
+      fetchedFiles.sort((a, b) => b.id - a.id);
+      setFiles(fetchedFiles);
       setStatus("");
     } catch (error) {
       console.error("Error loading files:", error);
-      setStatus("Error: Check Contract Address");
+      setStatus("Error loading events. Check console.");
     } finally {
       setLoading(false);
     }
@@ -149,7 +154,7 @@ export default function App() {
 
       setFileName("");
       setSelectedFile(null);
-      loadFiles();
+      loadFiles(); // Refresh the list using events
     } catch (error) {
       console.error(error);
 
@@ -163,8 +168,6 @@ export default function App() {
         message = "File name cannot be empty.";
       } else if (error.message.includes("FileAlreadyUploaded")) {
         message = "This file has already been uploaded.";
-      } else if (error.message.includes("FileDoesNotExist")) {
-        message = "Requested file does not exist.";
       } else if (error.reason) {
         message = error.reason;
       }
