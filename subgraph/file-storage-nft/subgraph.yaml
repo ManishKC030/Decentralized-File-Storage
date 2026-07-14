@@ -1,6 +1,4 @@
-specVersion: 1.3.0
-indexerHints:
-  prune: auto
+specVersion: 0.0.5
 schema:
   file: ./schema.graphql
 dataSources:
@@ -13,26 +11,14 @@ dataSources:
       startBlock: 11268531
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.9
+      apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - Approval
-        - ApprovalForAll
-        - FileUploaded
-        - OwnershipTransferred
-        - Transfer
+        - File
       abis:
         - name: FileStorageNFT
-          file: ./abis/FileStorageNFT.json
+          file: subgraph/file-storage-nft/abis/FileStorageNFT.json 
       eventHandlers:
-        - event: Approval(indexed address,indexed address,indexed uint256)
-          handler: handleApproval
-        - event: ApprovalForAll(indexed address,indexed address,bool)
-          handler: handleApprovalForAll
         - event: FileUploaded(indexed uint256,indexed address,string,string)
           handler: handleFileUploaded
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
-        - event: Transfer(indexed address,indexed address,indexed uint256)
-          handler: handleTransfer
       file: ./src/file-storage-nft.ts
