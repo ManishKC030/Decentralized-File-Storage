@@ -38,46 +38,52 @@ export default function App() {
     );
   };
 
-  // ✅ NEW: Load files by querying events instead of looping over storage
   async function loadFiles() {
-    if (!window.ethereum || !account || !CONTRACT_ADDRESS) return;
     setLoading(true);
-    setStatus("Reading Blockchain Events...");
+    setStatus("Fetching from decentralized indexer...");
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = getContract(provider);
+      const query = `
+      {
+        files(orderBy: timestamp, orderDirection: desc) {
+          id
+          tokenId
+          cid
+          fileName
+          uploader
+          timestamp
+        }
+      }
+    `;
 
-      // Filter for all FileUploaded events
-      const filter = contract.filters.FileUploaded();
-      const events = await contract.queryFilter(filter, 0, "latest");
-
-      // Map events to file objects (with timestamp from the block)
-      const fetchedFiles = await Promise.all(
-        events.map(async (event) => {
-          const block = await provider.getBlock(event.blockNumber);
-          const timestamp = new Date(block.timestamp * 1000).toLocaleString();
-          return {
-            id: Number(event.args.tokenId),
-            cid: event.args.cid,
-            fileName: event.args.fileName,
-            uploader: event.args.uploader,
-            timestamp: timestamp,
-          };
-        }),
+      // PASTE YOUR GRAPHQL ENDPOINT HERE ↓
+      const response = await fetch(
+        "https://api.studio.thegraph.com/query/1756494/file-storage-nft/version/latest",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        },
       );
 
-      // Sort by tokenId descending (most recent first)
-      fetchedFiles.sort((a, b) => b.id - a.id);
+      const { data } = await response.json();
+
+      const fetchedFiles = data.files.map((file) => ({
+        id: Number(file.tokenId),
+        cid: file.cid,
+        fileName: file.fileName,
+        uploader: file.uploader,
+        timestamp: new Date(Number(file.timestamp) * 1000).toLocaleString(),
+      }));
+
       setFiles(fetchedFiles);
       setStatus("");
     } catch (error) {
-      console.error("Error loading files:", error);
-      setStatus("Error loading events. Check console.");
+      console.error("Subgraph error:", error);
+      setStatus("Error loading from indexer.");
     } finally {
       setLoading(false);
     }
   }
-
   useEffect(() => {
     if (account) {
       loadFiles();

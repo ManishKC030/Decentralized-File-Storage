@@ -17,7 +17,7 @@ dataSources:
         - File
       abis:
         - name: FileStorageNFT
-          file: subgraph/file-storage-nft/abis/FileStorageNFT.json 
+          file: ./abis/FileStorageNFT.json
       eventHandlers:
         - event: FileUploaded(indexed uint256,indexed address,string,string)
           handler: handleFileUploaded
