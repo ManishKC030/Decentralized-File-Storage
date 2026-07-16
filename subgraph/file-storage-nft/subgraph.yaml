@@ -6,7 +6,7 @@ dataSources:
     name: FileStorageNFT
     network: sepolia
     source:
-      address: "0x40db7DbB7CeF6705b10a8dc7C871A984000B2Ff3"
+      address: "0xdf88D945bbd5D3F24963d484F6B63b2463C76a08"
       abi: FileStorageNFT
       startBlock: 11268531
     mapping:
