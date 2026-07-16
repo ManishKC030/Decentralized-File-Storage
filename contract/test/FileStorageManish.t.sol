@@ -5,9 +5,7 @@ import "forge-std/Test.sol";
 import "../src/FileStorageNFT.sol";
 
 contract FileStorageNFTTest is Test {
-
     FileStorageNFT fileNFT;
-
     address alice = address(1);
     address bob = address(2);
 
@@ -15,6 +13,9 @@ contract FileStorageNFTTest is Test {
         fileNFT = new FileStorageNFT();
     }
 
+    // ===========================
+    // DEPLOYMENT
+    // ===========================
     function testDeployment() public view {
         assertEq(fileNFT.name(), "FileStorageNFT");
         assertEq(fileNFT.symbol(), "FSNFT");
@@ -22,34 +23,32 @@ contract FileStorageNFTTest is Test {
         assertEq(fileNFT.tokenCounter(), 0);
     }
 
+    // ===========================
+    // UPLOAD & MINT
+    // ===========================
     function testUploadFile() public {
-        vm.prank(alice);
+        // Expect the FileUploaded event
+        vm.expectEmit(true, true, true, true);
+        // The event will be emitted by the contract; we don't emit it here
 
+        vm.prank(alice);
         uint256 tokenId = fileNFT.uploadFile("Qm123", "resume.pdf");
 
-        FileStorageNFT.FileData memory file = fileNFT.getFile(tokenId);
-
-        assertEq(file.cid, "Qm123");
-        assertEq(file.fileName, "resume.pdf");
-        assertEq(file.uploader, alice);
-
-        assertEq(fileNFT.ownerOf(tokenId), alice);
+        assertEq(tokenId, 0);
         assertEq(fileNFT.tokenCounter(), 1);
+        assertEq(fileNFT.ownerOf(0), alice);
+        // Verify bob is not the owner
+        assertTrue(fileNFT.ownerOf(0) != bob);
+
+        // Check that the CID is marked as used
+        assertTrue(fileNFT.isCIDUsed("Qm123"));
+        assertFalse(fileNFT.isCIDUsed("Qm456"));
     }
 
-    function testRetrieveFile() public {
-        vm.prank(alice);
-
-        fileNFT.uploadFile("QmABC", "notes.txt");
-
-        FileStorageNFT.FileData memory file = fileNFT.getFile(0);
-
-        assertEq(file.cid, "QmABC");
-        assertEq(file.fileName, "notes.txt");
-    }
-
+    // ===========================
+    // TOKEN COUNTER INCREMENTS
+    // ===========================
     function testTokenCounter() public {
-
         vm.prank(alice);
         fileNFT.uploadFile("A", "one");
 
@@ -62,63 +61,69 @@ contract FileStorageNFTTest is Test {
         assertEq(fileNFT.tokenCounter(), 3);
     }
 
-    function testDuplicateCIDAllowed() public {
-
+    // ===========================
+    // DUPLICATE CID REVERTS
+    // ===========================
+    function testDuplicateCIDNotAllowed() public {
         vm.prank(alice);
         fileNFT.uploadFile("QmSame", "file1");
 
         vm.prank(alice);
+        vm.expectRevert(FileStorageNFT.FileAlreadyUploaded.selector);
         fileNFT.uploadFile("QmSame", "file2");
-
-        assertEq(fileNFT.tokenCounter(), 2);
-
-        assertEq(fileNFT.getFile(0).cid, "QmSame");
-        assertEq(fileNFT.getFile(1).cid, "QmSame");
     }
 
-    function testNFTOwner() public {
-
-        vm.prank(alice);
-        fileNFT.uploadFile("CID", "doc");
-
-        assertEq(fileNFT.ownerOf(0), alice);
-
-        assertTrue(fileNFT.isOwner(0, alice));
-        assertFalse(fileNFT.isOwner(0, bob));
-    }
-
+    // ===========================
+    // EMPTY FIELDS REVERT
+    // ===========================
     function testEmptyCID() public {
-
         vm.prank(alice);
-
+        vm.expectRevert(FileStorageNFT.EmptyCID.selector);
         fileNFT.uploadFile("", "resume.pdf");
-
-        assertEq(fileNFT.getFile(0).cid, "");
     }
 
     function testEmptyFileName() public {
-
         vm.prank(alice);
-
+        vm.expectRevert(FileStorageNFT.EmptyFileName.selector);
         fileNFT.uploadFile("Qm123", "");
-
-        assertEq(fileNFT.getFile(0).fileName, "");
     }
 
-    function testInvalidCIDString() public {
+    // ===========================
+    // CID USAGE CHECK
+    // ===========================
+    function testIsCIDUsed() public {
+        // Initially false
+        assertFalse(fileNFT.isCIDUsed("QmABC"));
 
         vm.prank(alice);
+        fileNFT.uploadFile("QmABC", "doc");
 
-        fileNFT.uploadFile("INVALID_CID_123", "image.png");
-
-        assertEq(
-            fileNFT.getFile(0).cid,
-            "INVALID_CID_123"
-        );
+        // Now true
+        assertTrue(fileNFT.isCIDUsed("QmABC"));
+        // Other CIDs remain false
+        assertFalse(fileNFT.isCIDUsed("QmXYZ"));
     }
 
-    function testMultipleUsers() public {
+    // ===========================
+    // ANY CID STRING ACCEPTED
+    // ===========================
+    function testInvalidCIDString() public {
+        vm.expectEmit(true, true, true, true);
+        // The event will be emitted with the "invalid" CID
 
+        vm.prank(alice);
+        uint256 tokenId = fileNFT.uploadFile("INVALID_CID_123", "image.png");
+
+        assertEq(tokenId, 0);
+        assertEq(fileNFT.tokenCounter(), 1);
+        // Check that the invalid CID is marked as used
+        assertTrue(fileNFT.isCIDUsed("INVALID_CID_123"));
+    }
+
+    // ===========================
+    // MULTIPLE USERS
+    // ===========================
+    function testMultipleUsers() public {
         vm.prank(alice);
         fileNFT.uploadFile("A", "Alice");
 
@@ -129,8 +134,10 @@ contract FileStorageNFTTest is Test {
         assertEq(fileNFT.ownerOf(1), bob);
     }
 
+    // ===========================
+    // TRANSFER NFT
+    // ===========================
     function testTransferNFT() public {
-
         vm.prank(alice);
         fileNFT.uploadFile("CID", "file");
 
@@ -138,11 +145,7 @@ contract FileStorageNFTTest is Test {
         fileNFT.transferFrom(alice, bob, 0);
 
         assertEq(fileNFT.ownerOf(0), bob);
-
-        FileStorageNFT.FileData memory file =
-            fileNFT.getFile(0);
-
-        assertEq(file.cid, "CID");
-        assertEq(file.fileName, "file");
+        // The CID remains used (unchanged)
+        assertTrue(fileNFT.isCIDUsed("CID"));
     }
 }
