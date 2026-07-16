@@ -134,51 +134,104 @@ export default function App() {
       alert("Please select a file first");
       return;
     }
+
     if (!fileName.trim()) {
       alert("Please enter a file name.");
       return;
     }
 
-    // 1. Upload to IPFS
-    const cid = await uploadToPinata();
-    if (!cid) return;
-
-    // 2. Write to Blockchain Database (Mint NFT)
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = getContract(signer);
+      console.log("========== STEP 1 ==========");
+      console.log("Uploading to Pinata...");
 
-      setStatus("Confirm Minting in MetaMask...");
-      const tx = await contract.uploadFile(cid, fileName);
+      const cid = await uploadToPinata();
 
-      setStatus("Recording on Blockchain...");
-      await tx.wait();
+      console.log("CID:", cid);
 
-      setStatus("Forge Success!");
-      alert("Success! File stored in decentralized vault.");
-
-      setFileName("");
-      setSelectedFile(null);
-      loadFiles(); // Refresh the list using events
-    } catch (error) {
-      console.error(error);
-
-      setStatus("Minting Failed");
-
-      let message = "Minting failed.";
-
-      if (error.message.includes("EmptyCID")) {
-        message = "CID cannot be empty.";
-      } else if (error.message.includes("EmptyFileName")) {
-        message = "File name cannot be empty.";
-      } else if (error.message.includes("FileAlreadyUploaded")) {
-        message = "This file has already been uploaded.";
-      } else if (error.reason) {
-        message = error.reason;
+      if (!cid) {
+        alert("No CID returned from Pinata.");
+        return;
       }
 
-      alert(message);
+      console.log("========== STEP 2 ==========");
+      console.log("Checking MetaMask...");
+
+      if (!window.ethereum) {
+        alert("MetaMask not found.");
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+
+      console.log("Provider created.");
+
+      const signer = await provider.getSigner();
+
+      console.log("Signer:", await signer.getAddress());
+
+      const contract = getContract(signer);
+
+      console.log("Contract Address:", CONTRACT_ADDRESS);
+
+      console.log("========== STEP 3 ==========");
+      console.log("Checking contract...");
+
+      try {
+        const code = await provider.getCode(CONTRACT_ADDRESS);
+        console.log("Bytecode:", code);
+
+        if (code === "0x") {
+          alert("No contract exists at this address!");
+          return;
+        }
+      } catch (err) {
+        console.log(err);
+      }
+
+      console.log("========== STEP 4 ==========");
+      console.log("Checking duplicate CID...");
+
+      const counter = await contract.tokenCounter();
+      console.log(counter.toString());
+
+      console.log("========== STEP 5 ==========");
+      console.log("Static Call...");
+
+      await contract.uploadFile.staticCall(cid, fileName);
+
+      console.log("Static Call Passed");
+
+      console.log("========== STEP 6 ==========");
+      console.log("Opening MetaMask...");
+
+      const tx = await contract.uploadFile(cid, fileName);
+
+      console.log("Transaction:", tx.hash);
+
+      setStatus("Waiting for confirmation...");
+
+      await tx.wait();
+
+      console.log("Success");
+
+      alert("NFT Minted Successfully!");
+
+      setSelectedFile(null);
+      setFileName("");
+
+      loadFiles();
+    } catch (error) {
+      console.log("============= FULL ERROR =============");
+      console.log(error);
+
+      console.log("message:", error.message);
+      console.log("shortMessage:", error.shortMessage);
+      console.log("reason:", error.reason);
+      console.log("code:", error.code);
+      console.log("data:", error.data);
+      console.log("info:", error.info);
+
+      alert(error.shortMessage || error.reason || error.message);
     }
   }
 

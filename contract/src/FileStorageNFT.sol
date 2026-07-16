@@ -49,9 +49,7 @@ contract FileStorageNFT is ERC721, Ownable {
         if (bytes(_fileName).length == 0)
             revert EmptyFileName();
 
-        if (uploadedCID[_cid])
-            revert FileAlreadyUploaded();
-
+       
         tokenId = tokenCounter;
 
         _safeMint(msg.sender, tokenId);
